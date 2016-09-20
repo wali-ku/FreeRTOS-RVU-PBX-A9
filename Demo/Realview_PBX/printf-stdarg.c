@@ -18,6 +18,7 @@
 */
 
 #include <stdarg.h>
+#include <string.h>
 #include <stdbool.h>
 
 #ifdef PRINTF_FLOAT_SUPPORT

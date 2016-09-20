@@ -60,8 +60,8 @@
 #include "FreeRTOS.h"
 /*----------------------------------------------------------------------------*/
 
-//#define TIMER_0_1_BASE		( 0x10011000 )	/* Realview PBX-A9 */
-#define TIMER_0_1_BASE		( 0x60005000 )	/* nVidia Tegra 2 */
+#define TIMER_0_1_BASE		( 0x10011000 )	/* Realview PBX-A9 */
+//#define TIMER_0_1_BASE		( 0x60005000 )	/* nVidia Tegra 2 */
 #define TIMER_1_LOAD		( ( unsigned long * volatile ) ( TIMER_0_1_BASE + 0x0 ) )	/* Load Register */
 #define TIMER_1_VALUE		( ( unsigned long * volatile ) ( TIMER_0_1_BASE + 0x04 ) )	/* Current Value Register */
 #define TIMER_1_CONTROL		( ( unsigned long * volatile ) ( TIMER_0_1_BASE + 0x08 ) )	/* Control Register */

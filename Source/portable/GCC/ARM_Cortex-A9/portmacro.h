@@ -138,7 +138,7 @@ static inline unsigned long portCORE_ID(void)
 
 
 /* Peripheral Base. */
-#define portPERIPHBASE							( 0x1E000000 )		/* vexpress-a9 */
+#define portPERIPHBASE							( 0x1F000000 )		/* Realview-PBX-A9 GIC Memory Base Address */
 #define portGIC_PRIVATE_BASE					( portPERIPHBASE + 0x100UL )
 #define portGIC_DISTRIBUTOR_BASE				( portPERIPHBASE + 0x1000UL )
 #define portEXCEPTION_VECTORS_BASE				( portCORE_ID()*0x1000000 )

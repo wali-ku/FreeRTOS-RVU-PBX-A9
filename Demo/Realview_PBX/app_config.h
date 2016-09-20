@@ -28,12 +28,21 @@ limitations under the License.
 #ifndef _APP_CONFIG_H_
 #define _APP_CONFIG_H_
 
+extern void vUARTInitialise( unsigned long ulUARTPeripheral, unsigned long ulBaud, unsigned long ulQueueSize );
 
 /* Settings for main.c */
+#define vDirectPrintMsg(msg)	vSerialPutString((xComPortHandle)mainPRINT_PORT, (const signed char * const)msg, strlen(msg))
+
+#define FreeRTOS_Error(msg)	vDirectPrintMsg(msg)
+
+/* Specify the baudrate for the UART */
+#define mainPRINT_BAUDRATE	( 38400 )
 
 /* Uart(s) to print to and/or to receive from */
-#define PRINT_UART_NR                    ( 0 )
-#define RECV_UART_NR                     ( 0 )
+#define mainPRINT_PORT		( configUART_PORT )
+
+#define UBaseType_t		unsigned int
+#define TickType_t		portTickType
 
 /*
  * Priorities of certain tasks.

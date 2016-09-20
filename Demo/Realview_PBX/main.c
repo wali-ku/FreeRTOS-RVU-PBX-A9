@@ -23,14 +23,15 @@ limitations under the License.
  */
 
 
+#include <stdio.h>
+#include <string.h>
 #include <stddef.h>
 
-#include <FreeRTOS.h>
-#include <task.h>
+#include "FreeRTOS.h"
+#include "task.h"
 
 #include "app_config.h"
-#include "print.h"
-#include "receive.h"
+#include "serial.h"
 
 
 /*
@@ -43,6 +44,12 @@ limitations under the License.
  */
 #pragma GCC diagnostic ignored "-Wmain"
 
+void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed char *pcTaskName );
+void vApplicationTickHook( void );
+void vApplicationIdleHook( void );
+
+extern void vPortUnknownInterruptHandler( void *pvParameter );
+extern void vPortInstallInterruptHandler( void (*vHandler)(void *), void *pvParameter, unsigned long ulVector, unsigned char ucEdgeTriggered, unsigned char ucPriority, unsigned char ucProcessorTargets );
 
 /* Struct with settings for each task */
 typedef struct _paramStruct
@@ -70,7 +77,7 @@ void vTaskFunction( void *pvParameters )
     {
         /* Print out the name of this task. */
 
-        vPrintMsg(taskName);
+        vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)taskName, strlen(taskName));
 
         vTaskDelay( delay / portTICK_RATE_MS );
     }
@@ -105,7 +112,7 @@ void vPeriodicTaskFunction(void* pvParameters)
     {
         /* Print out the name of this task. */
 
-        vPrintMsg(taskName);
+        vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)taskName, strlen(taskName));
 
         /*
          * The task will unblock exactly after 'delay' milliseconds (actually
@@ -125,36 +132,30 @@ void vPeriodicTaskFunction(void* pvParameters)
 
 
 /* Parameters for two tasks */
-static const paramStruct tParam[2] =
+paramStruct tParam[2] =
 {
-    (paramStruct) { .text="Task1\r\n", .delay=2000 },
-    (paramStruct) { .text="Periodic task\r\n", .delay=3000 }
+    { .text="Task1\r\n", .delay=1000 },
+    { .text="Periodic task\r\n", .delay=3000 }
 };
-
-
-/*
- * A convenience function that is called when a FreeRTOS API call fails
- * and a program cannot continue. It prints a message (if provided) and
- * ends in an infinite loop.
- */
-static void FreeRTOS_Error(const portCHAR* msg)
-{
-    if ( NULL != msg )
-    {
-        vDirectPrintMsg(msg);
-    }
-
-    for ( ; ; );
-}
 
 /* Startup function that creates and runs two FreeRTOS tasks */
 void main(void)
 {
+
+    unsigned long ulVector = 0UL;
+    unsigned long ulValue = 0UL;
+    char cAddress[32];
+
+    portDISABLE_INTERRUPTS();
+    
+    /* Install the Spurious Interrupt Handler to help catch interrupts. */
+    for ( ulVector = 0; ulVector < portMAX_VECTORS; ulVector++ )
+    	vPortInstallInterruptHandler( vPortUnknownInterruptHandler, (void *)ulVector, ulVector, pdTRUE, configMAX_SYSCALL_INTERRUPT_PRIORITY, 1 );
+    
     /* Init of print related tasks: */
-    if ( pdFAIL == printInit(PRINT_UART_NR) )
-    {
-        FreeRTOS_Error("Initialization of print failed\r\n");
-    }
+    vUARTInitialise( mainPRINT_PORT, mainPRINT_BAUDRATE, 64);
+
+    portENABLE_INTERRUPTS();
 
     /*
      * I M P O R T A N T :
@@ -162,41 +163,25 @@ void main(void)
      * When vTaskStartScheduler launches the first task, it will switch
      * to System mode and enable interrupt exceptions.
      */
-    vDirectPrintMsg("= = = T E S T   S T A R T E D = = =\r\n\r\n");
-
-    /* Init of receiver related tasks: */
-    if ( pdFAIL == recvInit(RECV_UART_NR) )
-    {
-        FreeRTOS_Error("Initialization of receiver failed\r\n");
-    }
-
-    /* Create a print gate keeper task: */
-    if ( pdPASS != xTaskCreate(printGateKeeperTask, "gk", 128, NULL,
-                               PRIOR_PRINT_GATEKEEPR, NULL) )
-    {
-        FreeRTOS_Error("Could not create a print gate keeper task\r\n");
-    }
-
-    if ( pdPASS != xTaskCreate(recvTask, "recv", 128, NULL, PRIOR_RECEIVER, NULL) )
-    {
-        FreeRTOS_Error("Could not create a receiver task\r\n");
-    }
+    vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("= = = T E S T   S T A R T E D = = =\r\n\r\n"), strlen("= = = T E S T   S T A R T E D = = =\r\n\r\n"));
 
     /* And finally create two tasks: */
     if ( pdPASS != xTaskCreate(vTaskFunction, "task1", 128, (void*) &tParam[0],
                                PRIOR_PERIODIC, NULL) )
     {
-        FreeRTOS_Error("Could not create task1\r\n");
+        vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("Could not create task1\r\n"), strlen("Could not create task1\r\n"));
+	while(1);
     }
 
     if ( pdPASS != xTaskCreate(vPeriodicTaskFunction, "task2", 128, (void*) &tParam[1],
                                PRIOR_FIX_FREQ_PERIODIC, NULL) )
     {
-        FreeRTOS_Error("Could not create task2\r\n");
+        vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("Could not create task2\r\n"), strlen("Could not create task2\r\n"));
+	while(1);
     }
 
-    vDirectPrintMsg("A text may be entered using a keyboard.\r\n");
-    vDirectPrintMsg("It will be displayed when 'Enter' is pressed.\r\n\r\n");
+    vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("A text may be entered using a keyboard.\r\n"), strlen("A text may be entered using a keyboard.\r\n"));
+    vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("It will be displayed when 'Enter' is pressed.\r\n\r\n"), strlen("It will be displayed when 'Enter' is pressed.\r\n\r\n"));
 
     /* Start the FreeRTOS scheduler */
     vTaskStartScheduler();
@@ -206,8 +191,53 @@ void main(void)
      * If it does return, typically not enough heap memory is reserved.
      */
 
-    FreeRTOS_Error("Could not start the scheduler!!!\r\n");
+    vSerialPutString((xComPortHandle)configUART_PORT, (const signed char * const)("Could not start the scheduler!!!\r\n"), strlen("Could not start the scheduler!!!\r\n"));
+    while(1);
 
     /* just in case if an infinite loop is somehow omitted in FreeRTOS_Error */
     for ( ; ; );
+}
+
+void vApplicationMallocFailedHook( void )
+{
+	__asm volatile (" smc #0 ");
+}
+/*----------------------------------------------------------------------------*/
+
+extern void vAssertCalled( char *file, int line )
+{
+	printf("Assertion failed at %s, line %d\n\r",file,line);
+	taskDISABLE_INTERRUPTS();
+	for( ;; );
+}
+
+void vApplicationTickHook( void )
+{
+	static int ticks = 0;
+	ticks++;
+
+	if (ticks % 1000 == 0)
+		printf("Time : %d sec\r\n\n", ticks / 1000);
+}
+/*----------------------------------------------------------------------------*/
+
+void vApplicationIdleHook( void )
+{
+signed char cChar;
+	if ( pdTRUE == xSerialGetChar( (xComPortHandle)mainPRINT_PORT, &cChar, 0UL ) )
+	{
+		(void)xSerialPutChar( (xComPortHandle)mainPRINT_PORT, cChar, 0UL );
+		(void)xSerialPutChar( (xComPortHandle)mainPRINT_PORT, cChar, 0UL );
+	}
+}
+/*----------------------------------------------------------------------------*/
+
+void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed char *pcTaskName )
+{
+	( void ) pxTask;
+	( void ) pcTaskName;
+	 printf("StackOverflowHook\n");
+	/* If the parameters have been corrupted then inspect pxCurrentTCB to
+	identify which task has overflowed its stack. */
+	for( ;; );
 }
