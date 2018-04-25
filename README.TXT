@@ -25,3 +25,8 @@ https://github.com/jkovacic/FreeRTOS-GCC-ARM926ejs
 The headers from respective authors have been left intact in the relevant source files.
 This is a single core port which runs the multi-threaded freeRTOS demo on RealView-PBX-A9. It has
 been verified to be working.
+
+##PACKAGES REQUIRED
+- gcc-arm-none-eabi
+- u-boot-tools
+- qemu-system-arm
